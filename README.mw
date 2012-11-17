@@ -1,0 +1,72 @@
+This repo contains two little files that help us apply SpamBayes
+to users on the OpenHatch site. It might be useful to maintainers
+of other small-to-medium user-generated-content sites. Mostly I
+wrote this file to document our approach to antispam so that we
+can remember how it works when we need it again.
+
+== Overview ==
+
+* We mass-export user data into email-like files.
+
+* We use an "off the shelf" anti-email-spam tool to learn which users' contents are spam. It takes about 1 minute to classify all 10,000 as spam or non-spam.
+
+* We then semi-manually pass those usernames to the backend, which emails the users, archives their data, and then deletes them from the site.
+
+As a side note, I wrote this in about 24 hours. The code quality is not amazing.
+
+== Details ==
+
+The files are
+
+* process.py: This takes a JSON snapshot about a user, and converts it into a quoted-printable Unicode-safe email message object, and sends that to stdout.
+
+* remove_spammy_users.py: This loops over message files created by 
+
+To use this:
+
+* Run mysite.profile.controllers.generate_user_export(u) on every user on the deployment, saving the results as a JSON file whose filename is the username.
+
+* Copy those files into jsons/
+
+* For each file in there, create a corresponding msg file by running something like:
+
+ for thing in jsons/* ; do
+     python process.py < $thing > $(echo "$thing" | sed s/jsons/msgs/)
+ done
+
+* Make sure you have trained at least one "ham" (non-spam) and "spam" user file, by running
+
+ sb_filter -s - < msgs/some_spammy_username
+
+ sb_filter -g - < msgs/some_non_spammy_username
+
+* Simply run 'python remove_spammy_users.py' and it will prompt you as it learns. After every run, copy your terminal output into a file, and run a script like this:
+
+In order to print spammy usernames:
+
+ grep would /tmp/qqq | awk '{print $4}'  | sort | uniq
+
+You can paste those one-by-one into the user deletion form, or probably we should make a mass user deletion form.
+
+The next task is to move the msgs corresponding to spam users out of msgs/. To do that:
+
+ cd msgs
+ for thing in $(grep would /tmp/qqq | awk '{print $4}'  | sort | uniq )
+ do              
+   mv -v $thing ../known-spam
+ done
+
+* Next, you just keep running remove_spammy_users.py until it reports no spam users.
+
+== Details ==
+
+Dependencies:
+
+sudo apt-get install spambayes
+
+== License ==
+
+Do note that the code is currently awful. (-:
+
+Permission to redistribute is granted for these files under
+the terms of the Apache License 2.0.
