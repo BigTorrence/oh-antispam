@@ -15,13 +15,15 @@ def split_into_lines(s):
     for line in s.split('\n'):
         line = line.rstrip()
         if line.startswith('commit'):
-            ret.append(this_one)
+            if this_one:
+                ret.append(this_one)
             this_one = []
         this_one.append(line)
     return ret
 
 def parse(list_of_line_lists):
     for line_list in list_of_line_lists:
+        assert (type(line_list) == list)
         yield parse_line_list(line_list)
 
 def parse_line_list(l):
@@ -30,6 +32,7 @@ def parse_line_list(l):
     for line in l:
         if line.startswith("Author:"):
             author = line.split()[1]
+    assert author
     return ParsedLogItem(full_string=full_string, author=author)
 
 def list_authors(data):
@@ -62,8 +65,8 @@ def prompt_for_action():
     return None
 
 def process():
-    data = list(parse(
-            split_into_lines(GIT_LOG_OUTPUT)))
+    line_lists = split_into_lines(GIT_LOG_OUTPUT)
+    data = list(parse(line_lists))
     while True:
         action = prompt_for_action()
         if action:
