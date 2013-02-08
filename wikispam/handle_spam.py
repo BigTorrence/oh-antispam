@@ -5,7 +5,7 @@ import collections
 # e.g. git log --since='Wed Dec 5 22:57:06 2012 +0000'
 GIT_LOG_OUTPUT = open('/tmp/output').read()
 
-ParsedLogItem = collections.namedtuple('ParsedLogItem', 'author full_string')
+ParsedLogItem = collections.namedtuple('ParsedLogItem', 'author full_string commit')
 
 NextSteps = collections.namedtuple('NextSteps', 'people_to_ban')
 
@@ -32,8 +32,11 @@ def parse_line_list(l):
     for line in l:
         if line.startswith("Author:"):
             author = line.split()[1]
+        if line.startswith("commit "):
+            commit = line.split()[1]
     assert author
-    return ParsedLogItem(full_string=full_string, author=author)
+    assert commit
+    return ParsedLogItem(full_string=full_string, author=author, commit=commit)
 
 def list_authors(data):
     for thing in sorted(set([datum.author for datum in data])):
@@ -43,12 +46,20 @@ def review_author(data):
     print 'Here is a list of authors:'
     list_authors(data)
     name = raw_input('Who do you want to review?')
-    print name
+    just_by_them = [k for k in data
+                    if k.author.lower() == name.lower()]
+    for commit in just_by_them:
+        print commit
+    looks_spammy = raw_input("Looks like all spam? y/N ")
+    if (looks_spammy.strip() and (looks_spammy[0].lower() == 'y')):
+        print "OK. Next steps:"
+        print "Block them:", ("https://openhatch.org/wiki/Special:Block?wpTarget=" + name + "&wpExpiry=infinite&wpExpiry-other=&wpReason=Spamming+links+to+external+sites&wpReason-other=&wpCreateAccount=1&wpDisableEmail=1&wpAutoBlock=1&wpWatch=1&wpHardBlock=1&wpEditToken=5aaacea7cd97694641472b712f0ad9b6%2B\&title=Special%3ABlock%2FGchragegarr&redirectparams=&wpPreviousTarget=Gchragegarr&wpConfirm=")
 
 def quit_placeholder():
     raise NotImplemented
 
 def prompt_for_action():
+    nexts = NextSteps(people_to_ban=[])
     actions = {'a': (list_authors, 'List (a)uthors'),
                'r': (review_author, '(R)eview author to see if all their edits are spam'),
                'q': (quit_placeholder, '(Q)uit'),
